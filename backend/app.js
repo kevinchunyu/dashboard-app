@@ -14,6 +14,7 @@ var app = express();
 app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+app.use(express.static("../frontend/build"));
 
 // Make sure that the client gets the latest version of resource
 app.disable('etag');
