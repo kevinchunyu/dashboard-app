@@ -1,0 +1,1 @@
+# AWS IAM AssumeRole Credential Generator for Students

@@ -9,8 +9,8 @@ let router = express.Router();
 router.get('/', async (req,res) => {
     try {
         const command = new AssumeRoleCommand({
-          RoleArn: `arn:aws:iam::${process.env.AWS_ID}:role/student`,
-          RoleSessionName: "session1",
+          RoleArn: `arn:aws:iam::${process.env.AWS_ACCOUNT_ID}:role/StudentRole`,
+          RoleSessionName: "session",
           DurationSeconds: 900,
         });
 

@@ -1,8 +1,3 @@
-#!/usr/bin/env node
-
-/**
- * Module dependencies.
- */
 var debug = require('debug')('aws-sts-distributor:server');
 var http = require('http');
 
@@ -23,7 +18,6 @@ const DEFAULT_PORT = '7777';
    */
 
   let host = process.env.DEBUG ? "127.0.0.1" : "0.0.0.0";
-
   var server = http.createServer(app);
 
   /**

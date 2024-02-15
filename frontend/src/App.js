@@ -10,7 +10,7 @@ function App() {
   });
   
   const fetchCredentials = () => {
-    fetch('http://localhost:7777/api/v1/roles')
+    fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/roles`)
       .then(response => response.json())
       .then(data => {
         // Update state with the credentials received
@@ -30,16 +30,16 @@ function App() {
       <h1>AWS IAM Role Temporary Credential Generator</h1>
       <div className='credentialBox'>
         <div>
-          <label for="AccessKeyID">AccessKeyID</label>
-          <input type="text" id="AccessKeyID" value={credentials.AccessKeyID} readonly />
+          <label htmlFor="AccessKeyID">AccessKeyID</label>
+          <input type="text" id="AccessKeyID" value={credentials.AccessKeyID} readOnly />
         </div>
         <div>
-            <label for="SecretAccessKey">SecretAccessKey</label>
-            <input type="text" id="SecretAccessKey" value={credentials.SecretAccessKey} readonly />
+            <label htmlFor="SecretAccessKey">SecretAccessKey</label>
+            <input type="text" id="SecretAccessKey" value={credentials.SecretAccessKey} readOnly />
         </div>
         <div>
-            <label for="SessionToken">SessionToken</label>
-            <input type="text" id="SessionToken" value={credentials.SessionToken} readonly />
+            <label htmlFor="SessionToken">SessionToken</label>
+            <input type="text" id="SessionToken" value={credentials.SessionToken} readOnly />
         </div>
 
         <button onClick={fetchCredentials}>Generate Credentials</button>

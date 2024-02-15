@@ -1,5 +1,6 @@
 import express from 'express';
 import logger from 'morgan';
+import cors from 'cors';
 
 import apiv1Router from './routes/api/v1/apiv1.js';
 
@@ -15,6 +16,7 @@ app.use(logger('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 app.use(express.static("../frontend/build"));
+app.use(cors());
 
 // Make sure that the client gets the latest version of resource
 app.disable('etag');
