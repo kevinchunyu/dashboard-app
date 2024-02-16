@@ -1,5 +1,4 @@
-import { useState } from 'react';
-
+import { useState, useRef } from 'react';
 import './App.css';
 
 function App() {
@@ -8,8 +7,11 @@ function App() {
     SecretAccessKey: '',
     SessionToken: ''
   });
+
+  const buttonRef = useRef(false);
   
   const fetchCredentials = () => {
+    buttonRef.current.disabled = true;
     fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/roles`)
       .then(response => response.json())
       .then(data => {
@@ -19,9 +21,12 @@ function App() {
           SecretAccessKey: data.SecretAccessKey,
           SessionToken: data.SessionToken
         });
+
+        buttonRef.current.disabled = false;
       })
       .catch(error => {
         console.error('Error fetching credentials:', error);
+        buttonRef.current.disabled = false;
       });
   };
 
@@ -42,7 +47,7 @@ function App() {
             <input type="text" id="SessionToken" value={credentials.SessionToken} readOnly />
         </div>
 
-        <button onClick={fetchCredentials}>Generate Credentials</button>
+        <button ref={buttonRef} onClick={fetchCredentials}>Generate Credentials</button>
       </div>
     </div>
   );
