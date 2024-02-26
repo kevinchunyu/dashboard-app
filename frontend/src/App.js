@@ -9,6 +9,7 @@ function App() {
   });
 
   const [publicIP, setPublicIP] = useState("");
+  const [registryURL, setRegistryURL] = useState("");
 
   const buttonRef = useRef(false);
   
@@ -41,6 +42,15 @@ function App() {
       .catch(error => {
         console.error('Error fetching public IP:', error);
       });
+
+    fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/ecr/url`)
+      .then(response => response.text())
+      .then(url => {
+        setRegistryURL(url);
+      })
+      .catch(error => {
+        console.error('Error fetching public IP:', error);
+      });
   }, []);
 
   return (
@@ -60,6 +70,10 @@ function App() {
           <label htmlFor="JenkinsWebhookLink">Jenkins Webhook URL</label>
           <input type="text" id="JenkinsWebhookLink" value={publicIP ? "http://" + publicIP + ":8081/github-webhook/" : ""} readOnly />
         </div>
+      </div>
+      <div className='registryBox'>
+          <label htmlFor="RegistryLink">Shared Container Registry URL</label>
+          <input type="text" id="RegistryLink" value={registryURL} readOnly />
       </div>
       <div className='credentialBox'>
         <h1>AWS IAM Assume Role</h1>
