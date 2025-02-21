@@ -4,18 +4,38 @@ import fetch from 'node-fetch';
 let router = express.Router();
 
 router.get('/public-ipv4', async (req, res) => {
-    const metadataUrl = 'http://169.254.169.254/latest/meta-data/public-ipv4';
+    // Azure IMDS endpoint for network interface data
+    const metadataUrl = 'http://169.254.169.254/metadata/instance/network/interface?api-version=2021-02-01';
 
     try {
-        const response = await fetch(metadataUrl);
-        if (!response.ok) {
-            throw new Error('Failed to fetch public IP');
+    const response = await fetch(metadataUrl, {
+        headers: { Metadata: 'true' }
+    });
+
+    if (!response.ok) {
+        throw new Error('Failed to fetch metadata');
+    }
+
+    const metadata = await response.json();
+    let publicIP = null;
+    if (metadata.interface && metadata.interface.length > 0) {
+        const ipAddresses = metadata.interface[0].ipv4?.ipAddress;
+        if (ipAddresses && ipAddresses.length > 0) {
+        publicIP = ipAddresses[0].publicIpAddress;
         }
-        const publicIP = await response.text();
+    }
+
+    if (publicIP) {
         res.send(publicIP);
+    } else {
+        res.status(404).send('Public IP address not found');
+    }
     } catch (err) {
-        res.status(500).send('Error fetching public IP address');
+    console.error(err);
+    res.status(500).send('Error fetching public IP address');
     }
 });
 
 export default router;
+
+// https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service?tabs=windows

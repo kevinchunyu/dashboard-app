@@ -8,5 +8,9 @@
     "start": "cd frontend; npm install && npm run build && cd ../backend; npm install && npm start"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@azure/container-registry": "^1.1.0",
+    "@azure/identity": "^4.7.0"
+  }
 }

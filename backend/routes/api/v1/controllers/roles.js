@@ -1,30 +1,33 @@
 import express from 'express';
-import { STSClient, AssumeRoleCommand } from "@aws-sdk/client-sts";
+import { DefaultAzureCredential } from '@azure/identity';
 
-const REGION = "us-west-1";
-export const client = new STSClient({ region: REGION });
+const router = express.Router();
 
-let router = express.Router();
+router.get('/', async (req, res) => {
+  try {
+    // Ensure the ACR name is set in your environment variables.
+    const registryName = process.env.ACR_NAME; 
+    if (!registryName) {
+      throw new Error("ACR_NAME environment variable is not set.");
+    }
+    // Define the scope for the ACR. The scope for ACR is the registry login server with the .default suffix.
+    const scope = `https://${registryName}.azurecr.io/.default`;
 
-router.get('/', async (req,res) => {
-    try {
-        const command = new AssumeRoleCommand({
-          RoleArn: `arn:aws:iam::${process.env.AWS_ACCOUNT_ID}:role/StudentRole`,
-          RoleSessionName: "session",
-          DurationSeconds: 900,
-        });
+    // Use DefaultAzureCredential to acquire an access token.
+    const credential = new DefaultAzureCredential();
+    const tokenResponse = await credential.getToken(scope);
 
-        const response = await client.send(command);
-        let credentials = {
-            AccessKeyID: response.Credentials.AccessKeyId,
-            SecretAccessKey: response.Credentials.SecretAccessKey,
-            SessionToken: response.Credentials.SessionToken
-        }
-        res.send(credentials);
-      } catch (err) {
-        console.error(err);
-      }
-    
-})
+    // Prepare the response. Azure AD tokens have an access token and an expiry timestamp.
+    const credentials = {
+      accessToken: tokenResponse.token,
+      expiresOn: tokenResponse.expiresOnTimestamp
+    };
+
+    res.send(credentials);
+  } catch (err) {
+    console.error("Error acquiring token:", err);
+    res.status(500).send({ error: err.message });
+  }
+});
 
 export default router;
