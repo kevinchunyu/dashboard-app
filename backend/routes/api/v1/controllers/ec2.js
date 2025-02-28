@@ -1,41 +1,57 @@
 import express from 'express';
 import fetch from 'node-fetch';
 
-let router = express.Router();
+const router = express.Router();
 
-router.get('/public-ipv4', async (req, res) => {
-    // Azure IMDS endpoint for network interface data
-    const metadataUrl = 'http://169.254.169.254/metadata/instance/network/interface?api-version=2021-02-01';
+const azureMetadataUrl = 'http://169.254.169.254/metadata/instance/network/interface?api-version=2021-02-01';
 
-    try {
-    const response = await fetch(metadataUrl, {
-        headers: { Metadata: 'true' }
+async function getPublicIP() {
+  try {
+    const response = await fetch(azureMetadataUrl, {
+      headers: { Metadata: 'true' },
+      timeout: 5000
     });
 
-    if (!response.ok) {
-        throw new Error('Failed to fetch metadata');
+    if (response.ok) {
+      const metadata = await response.json();
+      const ipAddresses = metadata.interface?.[0]?.ipv4?.ipAddress;
+      if (ipAddresses && ipAddresses.length > 0) {
+        return ipAddresses[0].publicIpAddress;
+      }
     }
+  } catch (error) {
+    console.log("Not running inside Azure VM, using external IP service...");
+  }
 
-    const metadata = await response.json();
-    let publicIP = null;
-    if (metadata.interface && metadata.interface.length > 0) {
-        const ipAddresses = metadata.interface[0].ipv4?.ipAddress;
-        if (ipAddresses && ipAddresses.length > 0) {
-        publicIP = ipAddresses[0].publicIpAddress;
-        }
+  // fetch public IP using an external service (works locally)
+  try {
+    const response = await fetch('https://api64.ipify.org?format=json');
+    if (response.ok) {
+      const data = await response.json();
+      return data.ip;
     }
+  } catch (error) {
+    console.error("Failed to fetch public IP:", error);
+    return null;
+  }
+
+  return null;
+}
+
+router.get('/public-ipv4', async (req, res) => {
+  try {
+    const publicIP = await getPublicIP();
+    console.log(publicIP);
 
     if (publicIP) {
-        res.send(publicIP);
+      res.send(publicIP);
     } else {
-        res.status(404).send('Public IP address not found');
+      res.status(404).send('Public IP address not found');
     }
-    } catch (err) {
-    console.error(err);
+  } catch (error) {
+    console.error(error);
     res.status(500).send('Error fetching public IP address');
-    }
+  }
 });
 
 export default router;
-
-// https://learn.microsoft.com/en-us/azure/virtual-machines/instance-metadata-service?tabs=windows

@@ -16,13 +16,14 @@ function App() {
     if (buttonRef.current) {
       buttonRef.current.disabled = true;
     }
+    // fetch env URL : http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/roles
+    // local host testing: http://localhost:7778/api/v1/roles
     fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/roles`)
       .then(response => response.json())
       .then(data => {
-        // Update state with the Azure token details received from the backend.
         setCredentials({
-          accessToken: data.accessToken,
-          expiresOn: data.expiresOn
+          accessToken: data.AccessToken,
+          expiresOn: data.ExpiresOn
         });
         if (buttonRef.current) {
           buttonRef.current.disabled = false;
@@ -37,8 +38,9 @@ function App() {
   };
 
   useEffect(() => {
-    // Fetch the public IP from the Azure metadata endpoint.
-    fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/azureMetadata/public-ipv4`)
+    // fetch env URL :http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/ec2/public-ipv4
+    // local host testing: http://localhost:7778/api/v1/ec2/public-ipv4
+    fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/ec2/public-ipv4`)
       .then(response => response.text())
       .then(ip => {
         setPublicIP(ip);
