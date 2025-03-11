@@ -18,7 +18,6 @@ app.use(express.urlencoded({ extended: false }));
 app.use(express.static("../frontend/build"));
 app.use(cors());
 
-// Make sure that the client gets the latest version of resource
 app.disable('etag');
 
 app.use('/api/v1', apiv1Router);

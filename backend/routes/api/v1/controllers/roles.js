@@ -6,6 +6,9 @@ const router = express.Router();
 router.get('/', async (req, res) => {
   try {
     // Ensure the Azure subscription ID is set in your environment variables.
+    // 8e2e5e49-34ac-47a0-b9cb-2a79a3bba0c9
+    // process.env.AZURE_SUBSCRIPTION_ID
+    //const subscriptionId = '8e2e5e49-34ac-47a0-b9cb-2a79a3bba0c9';
     const subscriptionId = process.env.AZURE_SUBSCRIPTION_ID;
     if (!subscriptionId) {
       throw new Error("AZURE_SUBSCRIPTION_ID environment variable is not set.");
