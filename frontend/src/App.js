@@ -40,7 +40,7 @@ function App() {
   useEffect(() => {
     // fetch env URL :http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/ec2/public-ipv4
     // local host testing: http://localhost:7778/api/v1/ec2/public-ipv4
-    fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/ec2/public-ipv4`)
+    fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/ip/public-ipv4`)
       .then(response => response.text())
       .then(ip => {
         setPublicIP(ip);
@@ -50,7 +50,9 @@ function App() {
       });
 
     // Fetch the Azure Container Registry (ACR) URL.
-    fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/acr/url`)
+    // localhost testing: http://localhost:7778/api/v1/ecr/url
+    // env URL : http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/ecr/url
+    fetch(`http://${process.env.REACT_APP_API_ENDPOINT}:7778/api/v1/ecr/url`)
       .then(response => response.text())
       .then(url => {
         setRegistryURL(url);
