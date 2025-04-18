@@ -1,75 +1,39 @@
 import express from 'express';
-import { DefaultAzureCredential } from '@azure/identity';
-import { ContainerRegistryManagementClient } from '@azure/arm-containerregistry';
-import { ResourceManagementClient } from '@azure/arm-resources';
+import axios from 'axios';
 
 const router = express.Router();
 
 router.get('/', async (req, res) => {
   try {
-    // Get required environment variables
-    const subscriptionId = process.env.AZURE_SUBSCRIPTION_ID || '8fa24a70-a4ea-4c31-868a-f91dbef91879';
     const acrName = process.env.ACR_NAME || 'labacrdevops';
-    const resourceGroup = process.env.AZURE_RESOURCE_GROUP || 'lab_rg';
+    const registryUrl = `https://${acrName}.azurecr.io`;
 
-    if (!subscriptionId) {
-      throw new Error("AZURE_SUBSCRIPTION_ID environment variable is not set.");
-    }
+    // Call Azure Instance Metadata Service to get the access token for ACR
+    const response = await axios.get('http://169.254.169.254/metadata/identity/oauth2/token', {
+      headers: {
+        Metadata: 'true'
+      },
+      params: {
+        resource: 'https://containerregistry.azure.net',
+        'api-version': '2018-02-01'
+      },
+      timeout: 2000
+    });
 
-    let acrResourceGroup = resourceGroup;
-    
-    const credential = new DefaultAzureCredential();
-    
-    // If resource group wasn't provided, look it up
-    if (!acrResourceGroup) {
-      try {
-        const resourceClient = new ResourceManagementClient(credential, subscriptionId);
-        const resources = await resourceClient.resources.list({
-          filter: `resourceType eq 'Microsoft.ContainerRegistry/registries' and name eq '${acrName}'`
-        });
-        const registry = resources.find(r => r.name.toLowerCase() === acrName.toLowerCase());
-        if (!registry) {
-          throw new Error(`Registry '${acrName}' not found in subscription '${subscriptionId}'`);
-        }
+    const accessToken = response.data.access_token;
+    const expiresIn = response.data.expires_on;
 
-        // Extract resource group from resource ID
-        const idParts = registry.id.split('/');
-        const rgIndex = idParts.findIndex(p => p.toLowerCase() === 'resourcegroups');
-        acrResourceGroup = idParts[rgIndex + 1];
-        console.log(`Found registry in resource group: ${acrResourceGroup}`);
-      } catch (error) {
-        console.error("Error finding registry resource group:", error);
-        throw new Error(`Could not determine resource group for ACR: ${error.message}`);
-      }
-    }
-
-    const registryClient = new ContainerRegistryManagementClient(credential, subscriptionId);
-
-    const credentialsResult = await registryClient.registries.listCredentials(
-      acrResourceGroup,
-      acrName
-    );
-
-    const username = credentialsResult.username;
-    const password = credentialsResult.passwords[0].value;
-
-    // 12hrs for now
-    const expiresOn = new Date(Date.now() + 43200 * 1000).toISOString();
-
-    const credentials = {
-      AccessToken: password,
-      Username: username,
-      ExpiresOn: expiresOn,
-      RegistryName: acrName,
+    res.send({
+      AccessToken: accessToken,
+      expiresOn: expiresIn,
       UsageInstructions: {
-        DockerLogin: `docker login ${acrName}.azurecr.io --username ${username} --password "${password}"`,
-        DockerPull: `docker pull ${acrName}.azurecr.io/repository-name:tag`,
-        DockerPush: `docker push ${acrName}.azurecr.io/your-name/image-name:tag`
+        DockerLogin: `echo ${accessToken} | docker login ${registryUrl} -u 00000000-0000-0000-0000-000000000000 --password-stdin`,
+        DockerPull: `docker pull ${registryUrl}/<image>:<tag>`,
+        DockerPush: `docker push ${registryUrl}/<image>:<tag>`
       }
-    };
-    res.send(credentials);
+    });
   } catch (err) {
-    console.error("Error generating ACR credentials:", err);
+    console.error("Error retrieving token:", err);
     res.status(500).send({ error: err.message });
   }
 });
