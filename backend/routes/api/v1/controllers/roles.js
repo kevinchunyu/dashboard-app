@@ -1,40 +1,59 @@
+// routes/acrCliTokenFixed.js
 import express from 'express';
-import axios from 'axios';
+import cors from 'cors';
+import { exec } from 'child_process';
+import util from 'util';
 
 const router = express.Router();
+router.use(cors());
+router.use(express.json());
 
-router.get('/', async (req, res) => {
+const execAsync = util.promisify(exec);
+
+const resourceGroup = 'lab_rg';
+const registryName  = 'labacrdevops';
+const scopeMapName  = 'StudentScopeMap';
+const tokenName     = 'MyFixedToken';
+
+async function runAz(cmd) {
+  const full = `az ${cmd} --resource-group ${resourceGroup} --output json`;
+  const { stdout, stderr } = await execAsync(full);
+  if (stderr) console.warn(stderr);
+  return JSON.parse(stdout);
+}
+
+router.post('/acr-token', async (req, res) => {
   try {
-    const acrName = process.env.ACR_NAME || 'labacrdevops';
-    const registryUrl = `https://${acrName}.azurecr.io`;
+    await runAz(
+      `acr token create --registry ${registryName}` +
+      ` --name ${tokenName}` +
+      ` --scope-map ${scopeMapName}`
+    );
 
-    // Call Azure Instance Metadata Service to get the access token for ACR
-    const response = await axios.get('http://169.254.169.254/metadata/identity/oauth2/token', {
-      headers: {
-        Metadata: 'true'
-      },
-      params: {
-        resource: 'https://containerregistry.azure.net',
-        'api-version': '2018-02-01'
-      },
-      timeout: 2000
-    });
+    const creds = await runAz(
+      `acr token credential generate --registry ${registryName}` +
+      ` --name ${tokenName}`
+    );
 
-    const accessToken = response.data.access_token;
-    const expiresIn = response.data.expires_on;
+    const password = creds.passwords[0].value;
 
-    res.send({
-      AccessToken: accessToken,
-      expiresOn: expiresIn,
-      UsageInstructions: {
-        DockerLogin: `echo ${accessToken} | docker login ${registryUrl} -u 00000000-0000-0000-0000-000000000000 --password-stdin`,
-        DockerPull: `docker pull ${registryUrl}/<image>:<tag>`,
-        DockerPush: `docker push ${registryUrl}/<image>:<tag>`
-      }
+    const registryUrl = `${registryName}.azurecr.io`;
+    const usageInstructions = {
+      login:      `docker login ${registryUrl} --username ${creds.username} --password ${password}`,
+      pull:       `docker pull ${registryUrl}/[repository]:[tag]`,
+      push:       `docker push ${registryUrl}/[repository]:[tag]`,
+    };
+
+    res.json({
+      tokenName,
+      credentials: { username: creds.username, password },
+      registry:    registryUrl,
+      accessLevel: 'Push, Pull, and Metadata Read',
+      usageInstructions
     });
   } catch (err) {
-    console.error("Error retrieving token:", err);
-    res.status(500).send({ error: err.message });
+    console.error('ACR CLI token error:', err);
+    res.status(500).json({ error: err.message });
   }
 });
 
