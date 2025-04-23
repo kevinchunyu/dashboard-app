@@ -1,58 +1,74 @@
-// routes/acrCliTokenFixed.js
+// routes/acrToken.js
 import express from 'express';
 import cors from 'cors';
-import { exec } from 'child_process';
-import util from 'util';
+import axios from 'axios';
+import { DefaultAzureCredential } from '@azure/identity';
 
 const router = express.Router();
 router.use(cors());
 router.use(express.json());
 
-const execAsync = util.promisify(exec);
+const subscriptionId    = process.env.AZURE_SUBSCRIPTION_ID || '8fa24a70-a4ea-4c31-868a-f91dbef91879';
+const resourceGroupName = 'lab_rg';
+const registryName      = 'labacrdevops';
+const tokenName         = 'StudentToken';
+const apiVersion        = '2023-01-01-preview';
 
-const resourceGroup = 'lab_rg';
-const registryName  = 'labacrdevops';
-const scopeMapName  = 'StudentScopeMap';
-const tokenName     = 'MyFixedToken';
-
-async function runAz(cmd) {
-  const full = `az ${cmd} --resource-group ${resourceGroup} --output json`;
-  const { stdout, stderr } = await execAsync(full);
-  if (stderr) console.warn(stderr);
-  return JSON.parse(stdout);
+async function getArmToken() {
+  const cred = new DefaultAzureCredential();
+  const { token } = await cred.getToken('https://management.azure.com/.default');
+  return token;
 }
 
 router.post('/acr-token', async (req, res) => {
   try {
-    await runAz(
-      `acr token create --registry ${registryName}` +
-      ` --name ${tokenName}` +
-      ` --scope-map ${scopeMapName}`
+    // 1) ARM token via MSI/SPN/CLI creds
+    const armToken = await getArmToken();
+
+    // 2) Build the correct URL (under "registries")
+    const url =
+      `https://management.azure.com/subscriptions/${subscriptionId}` +
+      `/resourceGroups/${resourceGroupName}` +
+      `/providers/Microsoft.ContainerRegistry/registries/${registryName}` +
+      `/generateCredentials?api-version=${apiVersion}`;
+
+    // 3) The only required body is the full resource ID of your token
+    const tokenId =
+      `/subscriptions/${subscriptionId}` +
+      `/resourceGroups/${resourceGroupName}` +
+      `/providers/Microsoft.ContainerRegistry/registries/${registryName}` +
+      `/tokens/${tokenName}`;
+
+    // 4) Call GenerateCredentials
+    const { data } = await axios.post(
+      url,
+      { tokenId },
+      {
+        headers: {
+          Authorization: `Bearer ${armToken}`,
+          'Content-Type':  'application/json'
+        }
+      }
     );
+    // 5) Pull out username & password
+    const username = data.username;
+    const password = data.passwords[0].value;
 
-    const creds = await runAz(
-      `acr token credential generate --registry ${registryName}` +
-      ` --name ${tokenName}`
-    );
-
-    const password = creds.passwords[0].value;
-
+    // 6) Return what your frontend needs
     const registryUrl = `${registryName}.azurecr.io`;
-    const usageInstructions = {
-      login:      `docker login ${registryUrl} --username ${creds.username} --password ${password}`,
-      pull:       `docker pull ${registryUrl}/[repository]:[tag]`,
-      push:       `docker push ${registryUrl}/[repository]:[tag]`,
-    };
-
     res.json({
       tokenName,
-      credentials: { username: creds.username, password },
+      credentials: { username, password },
       registry:    registryUrl,
       accessLevel: 'Push, Pull, and Metadata Read',
-      usageInstructions
+      usageInstructions: {
+        login: `docker login ${registryUrl} --username ${username} --password ${password}`,
+        pull:  `docker pull ${registryUrl}/<repo>:<tag>`,
+        push:  `docker push ${registryUrl}/<repo>:<tag>`
+      }
     });
   } catch (err) {
-    console.error('ACR CLI token error:', err);
+    console.error('Failed to generate ACR token creds:', err);
     res.status(500).json({ error: err.message });
   }
 });
