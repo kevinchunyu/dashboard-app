@@ -68,8 +68,13 @@ router.post('/acr-token', async (req, res) => {
       }
     });
   } catch (err) {
-    console.error('Failed to generate ACR token creds:', err);
-    res.status(500).json({ error: err.message });
+    console.error('GenerateCredentials failed:', {
+      status: err.response?.status,
+      data:   err.response?.data
+    });
+    res
+      .status(err.response?.status || 500)
+      .json({ error: err.response?.data || err.message });
   }
 });
 
